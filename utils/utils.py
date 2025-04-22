@@ -1,7 +1,7 @@
 import torch
 from sklearn.metrics import roc_auc_score, mean_squared_error
 import numpy as np
-from augmentations import embed_data_mask
+from utils.augmentations import embed_data_mask
 import torch.nn as nn
 
 def make_default_mask(x):

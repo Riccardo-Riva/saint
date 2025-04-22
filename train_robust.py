@@ -2,13 +2,13 @@ import torch
 from torch import nn
 from models import SAINT, SAINT_vision
 
-from data_openml import data_prep_openml,task_dset_ids,DataSetCatCon
+from utils.data_openml import data_prep_openml,task_dset_ids,DataSetCatCon
 import argparse
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from utils import count_parameters, classification_scores, mean_sq_error
-from augmentations import embed_data_mask
-from augmentations import add_noise
+from utils.utils import count_parameters, classification_scores, mean_sq_error
+from utils.augmentations import embed_data_mask
+from utils.augmentations import add_noise
 
 import os
 import numpy as np
@@ -86,6 +86,33 @@ if opt.active_log:
 print('Downloading and processing the dataset, it might take some time.')
 cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, train_mean, train_std = data_prep_openml(opt.dset_id, opt.dset_seed,opt.task, datasplit=[.65, .15, .2])
 continuous_mean_std = np.array([train_mean,train_std]).astype(np.float32) 
+
+# explore cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, train_mean, train_std
+print('cat_dims:',cat_dims)
+print('cat_idxs:',cat_idxs)
+print('con_idxs:',con_idxs)
+print('X_train:',X_train['data'].shape)
+print('y_train:',y_train['data'].shape)
+print('X_valid:',X_valid['data'].shape)
+print('y_valid:',y_valid['data'].shape)
+print('X_test:',X_test['data'].shape)
+print('y_test:',y_test['data'].shape)
+# type of X and y
+print('X_train:',type(X_train['data']))
+print('X_train:',X_train['data'].dtype)
+print('X_train:',X_train['mask'].dtype)
+print('y_train:',type(y_train['data']))
+print('X_valid:',type(X_valid['data']))
+print('y_valid:',type(y_valid['data']))
+
+print('train_mean:',train_mean)
+print('train_std:',train_std)
+
+# data vs mask
+print('X_train data:',X_train['data'][:5])
+print('X_train mask:',X_train['mask'][:5])
+print('X_train mask unque:',np.unique(X_train['mask']))
+print('y_train data:',y_train['data'][:5])
 
 ##### Setting some hyperparams based on inputs and dataset
 _,nfeat = X_train['data'].shape

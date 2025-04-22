@@ -2,13 +2,13 @@ import torch
 from torch import nn
 from models import SAINT
 
-from data_openml import data_prep_openml,task_dset_ids,DataSetCatCon
+from utils.data_openml import data_prep_openml,task_dset_ids,DataSetCatCon
 import argparse
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from utils import count_parameters, classification_scores, mean_sq_error
-from augmentations import embed_data_mask
-from augmentations import add_noise
+from utils.utils import count_parameters, classification_scores, mean_sq_error
+from utils.augmentations import embed_data_mask
+from utils.augmentations import add_noise
 
 import os
 import numpy as np
