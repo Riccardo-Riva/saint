@@ -260,6 +260,5 @@ class SAINT_encoding(nn.Module):
 
         
     def forward(self, x_categ, x_cont):
-        
         x = self.transformer(x_categ, x_cont)
         return x

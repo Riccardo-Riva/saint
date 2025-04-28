@@ -111,7 +111,7 @@ print('train_std:',train_std)
 # data vs mask
 print('X_train data:',X_train['data'][:5])
 print('X_train mask:',X_train['mask'][:5])
-print('X_train mask unque:',np.unique(X_train['mask']))
+print('X_train mask unique:',np.unique(X_train['mask']))
 print('y_train data:',y_train['data'][:5])
 
 ##### Setting some hyperparams based on inputs and dataset
@@ -141,6 +141,15 @@ print(opt)
 
 
 train_ds = DataSetCatCon(X_train, y_train, cat_idxs,opt.dtask,continuous_mean_std)
+
+print()
+for a in train_ds.__getitem__(0):
+    print(a)
+print()
+for a in train_ds.__getitem__(1):
+    print(a)
+print()
+
 trainloader = DataLoader(train_ds, batch_size=opt.batchsize, shuffle=True,num_workers=4)
 
 valid_ds = DataSetCatCon(X_valid, y_valid, cat_idxs,opt.dtask, continuous_mean_std)

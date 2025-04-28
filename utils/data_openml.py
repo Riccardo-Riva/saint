@@ -32,7 +32,7 @@ def data_split(X,y,nan_mask,indices):
     }
     
     if x_d['data'].shape != x_d['mask'].shape:
-        raise'Shape of data not same as that of nan mask!'
+        raise 'Shape of data not same as that of nan mask!'
         
     y_d = {
         'data': y[indices].reshape(-1, 1)
@@ -110,10 +110,10 @@ class DataSetCatCon(Dataset):
         X_mask =  X['mask'].copy()
         X = X['data'].copy()
         con_cols = list(set(np.arange(X.shape[1])) - set(cat_cols))
-        self.X1 = X[:,cat_cols].copy().astype(np.int64) #categorical columns
-        self.X2 = X[:,con_cols].copy().astype(np.float32) #numerical columns
-        self.X1_mask = X_mask[:,cat_cols].copy().astype(np.int64) #categorical columns
-        self.X2_mask = X_mask[:,con_cols].copy().astype(np.int64) #numerical columns
+        self.X1 = X[:,cat_cols].copy().astype(np.int64) # categorical columns
+        self.X2 = X[:,con_cols].copy().astype(np.float32) # numerical columns
+        self.X1_mask = X_mask[:,cat_cols].copy().astype(np.int64) # categorical columns
+        self.X2_mask = X_mask[:,con_cols].copy().astype(np.int64) # numerical columns
         if task == 'clf':
             self.y = Y['data']#.astype(np.float32)
         else:
