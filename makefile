@@ -1,5 +1,5 @@
-dset_id=31
-task=binary
+dset_id=41540
+task=multiclass
 
 CONDA=mamba
 
@@ -13,7 +13,9 @@ train_robust: train_robust.py
 	python train_robust.py \
 	--dset_id $(dset_id) \
 	--task $(task) \
-	--epochs 25
+	--epochs 5 \
+	--pretrain \
+	--pretrain_epochs 5
 
 saint: 
 	${CONDA} activate saint_env

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from baselines.data_openml import data_prep_openml, task_dset_ids, DataSetCatCon
+from utils.data_openml import data_prep_openml, task_dset_ids, DataSetCatCon
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from utils.augmentations import embed_data_mask
@@ -10,7 +10,7 @@ from utils.augmentations import add_noise
 import os
 import numpy as np
 
-def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device):
+def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device,use_cuda=True):
     train_ds = DataSetCatCon(X_train, y_train, cat_idxs,opt.dtask, continuous_mean_std)
     trainloader = DataLoader(train_ds, batch_size=opt.batchsize, shuffle=True,num_workers=4)
     vision_dset = opt.vision_dset
@@ -21,6 +21,26 @@ def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device
     }
     criterion1 = nn.CrossEntropyLoss()
     criterion2 = nn.MSELoss()
+
+    pt_aug_dict = {
+        'noise_type' : opt.pt_aug,
+        'lambda' : opt.pt_aug_lam
+    }
+    print(pt_aug_dict)
+
+    for d in trainloader:
+        x_categ = d[0].to(device)
+        print(x_categ.shape)
+        print(x_categ[0])
+        print(model.embeds)
+        x_categ = x_categ + model.categories_offset.type_as(x_categ)
+        print(x_categ.shape)
+        print(x_categ[0])
+        print(model.total_tokens)
+        print(nn.Embedding(69,32)(x_categ).shape)
+        #x_categ_enc = model.embeds(x_categ)
+        break
+
     print("Pretraining begins!")
     for epoch in range(opt.pretrain_epochs):
         model.train()
@@ -40,7 +60,7 @@ def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device
             
             if 'mixup' in opt.pt_aug:
                 from augmentations import mixup_data
-                x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2 , lam=opt.mixup_lam)
+                x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2 , lam=opt.mixup_lam,use_cuda)
             loss = 0
             if 'contrastive' in opt.pt_tasks:
                 aug_features_1  = model.transformer(x_categ_enc, x_cont_enc)
@@ -83,7 +103,7 @@ def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device
                 # import ipdb; ipdb.set_trace()
                 n_cat = x_categ.shape[-1]
                 for j in range(1,n_cat):
-                    l1+= criterion1(cat_outs[j],x_categ[:,j])
+                    l1 += criterion1(cat_outs[j],x_categ[:,j])
                 loss += opt.lam2*l1 + opt.lam3*l2    
             loss.backward()
             optimizer.step()

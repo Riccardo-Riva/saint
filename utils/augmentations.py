@@ -52,7 +52,7 @@ def embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model,vision_dset=False)
         
         pos = np.tile(np.arange(x_categ.shape[-1]),(x_categ.shape[0],1))
         pos =  torch.from_numpy(pos).to(device)
-        pos_enc =model.pos_encodings(pos)
+        pos_enc = model.pos_encodings(pos)
         x_categ_enc+=pos_enc
 
     return x_categ, x_categ_enc, x_cont_enc

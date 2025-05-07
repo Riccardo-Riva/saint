@@ -253,7 +253,7 @@ class SAINT_encoding(nn.Module):
         self.single_mask = nn.Embedding(2, self.dim)
         self.pos_encodings = nn.Embedding(self.num_categories+ self.num_continuous, self.dim)
 
-        self.mlpfory = simple_MLP([dim ,1000, y_dim])
+        self.mlpfory = simple_MLP([dim, 1000, y_dim])
         # CHECK
         self.pt_mlp = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
         self.pt_mlp2 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])

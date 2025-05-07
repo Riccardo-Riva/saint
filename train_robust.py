@@ -86,7 +86,7 @@ if opt.active_log:
 print('Downloading and processing the dataset, it might take some time.')
 cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, train_mean, train_std = data_prep_openml(opt.dset_id, opt.dset_seed,opt.task, datasplit=[.65, .15, .2])
 continuous_mean_std = np.array([train_mean,train_std]).astype(np.float32) 
-
+"""
 # explore cat_dims, cat_idxs, con_idxs, X_train, y_train, X_valid, y_valid, X_test, y_test, train_mean, train_std
 print('cat_dims:',cat_dims)
 print('cat_idxs:',cat_idxs)
@@ -113,7 +113,7 @@ print('X_train data:',X_train['data'][:5])
 print('X_train mask:',X_train['mask'][:5])
 print('X_train mask unique:',np.unique(X_train['mask']))
 print('y_train data:',y_train['data'][:5])
-
+"""
 ##### Setting some hyperparams based on inputs and dataset
 _,nfeat = X_train['data'].shape
 if nfeat > 100:
@@ -200,7 +200,7 @@ model.to(device)
 
 
 if opt.pretrain:
-    from pretraining import SAINT_pretrain
+    from utils.pretraining import SAINT_pretrain
     model = SAINT_pretrain(model, cat_idxs,X_train,y_train, continuous_mean_std, opt,device)
 
 if opt.ssl_samples is not None and opt.ssl_samples > 0 :
