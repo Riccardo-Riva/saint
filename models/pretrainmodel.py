@@ -54,8 +54,10 @@ class SAINT(nn.Module):
         self.total_tokens = self.num_unique_categories + num_special_tokens
 
         # for automatically offsetting unique category ids to the correct position in the categories embedding table
-
+        """ ORIGINAL
         categories_offset = F.pad(torch.tensor(list(categories)), (1, 0), value = num_special_tokens)
+        """
+        categories_offset = F.pad(torch.tensor([int(x) for x in categories]), (1, 0), value = num_special_tokens)
         categories_offset = categories_offset.cumsum(dim = -1)[:-1]
         
         self.register_buffer('categories_offset', categories_offset)
