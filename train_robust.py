@@ -66,9 +66,6 @@ else:
     opt.dtask = 'clf'
 
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(f"Device is {device}.")
-
 torch.manual_seed(opt.set_seed)
 os.makedirs(modelsave_path, exist_ok=True)
 

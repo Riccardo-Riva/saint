@@ -1,16 +1,22 @@
 import torch
 from torch import nn
 
+from utils.data_openml import data_prep_openml, task_dset_ids, DataSetCatCon
+from torch.utils.data import DataLoader
 import torch.optim as optim
 from utils.augmentations import embed_data_mask
+from utils.augmentations import add_noise
 
-import tqdm
+import os
+import numpy as np
 
 ########## PRETRAINING PIPELINE #############
-def SAINT_pretrain(model,trainloader,valloader,opt,device,use_cuda=True):
+def SAINT_pretrain(model,cat_idxs,X_train,y_train,continuous_mean_std,opt,device,use_cuda=True):
     #### LATER: it doesn't make sense to create the train_ds again
-    vision_dset = False #opt.vision_dset
-    optimizer = optim.AdamW(model.parameters(),lr=opt.lr)
+    train_ds = DataSetCatCon(X_train, y_train, cat_idxs,opt.dtask, continuous_mean_std)
+    trainloader = DataLoader(train_ds, batch_size=opt.batchsize, shuffle=True,num_workers=1)
+    vision_dset = opt.vision_dset
+    optimizer = optim.AdamW(model.parameters(),lr=0.0001)
     pt_aug_dict = {
         'noise_type' : opt.pt_aug,
         'lambda' : opt.pt_aug_lam
@@ -27,12 +33,7 @@ def SAINT_pretrain(model,trainloader,valloader,opt,device,use_cuda=True):
         model.train()
 
         running_loss = 0.0
-        
-        print('n')
-        print(f'Number of trainloader batches: {len(trainloader)}')
-        print(f'Number of valloader batches: {len(valloader)}')
-
-        for i, data in enumerate(trainloader, 0):
+        for i, data in tqdm.tqdm(enumerate(trainloader, 0)):
             optimizer.zero_grad()
             x_categ, x_cont, _ ,cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device),data[4].to(device)
             # embed_data_mask function is used to embed both categorical and continuous data.
@@ -90,7 +91,7 @@ def SAINT_pretrain(model,trainloader,valloader,opt,device,use_cuda=True):
                 n_cat = x_categ.shape[-1]
                 for j in range(1,n_cat):
                     l1+= criterion1(cat_outs[j],x_categ[:,j])
-                loss += opt.lam2*l1 + opt.lam3*l2
+                loss += opt.lam2*l1 + opt.lam3*l2    
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
@@ -100,7 +101,7 @@ def SAINT_pretrain(model,trainloader,valloader,opt,device,use_cuda=True):
         model.eval()
         with torch.no_grad():
             running_val_loss = 0.0
-            for i, data in enumerate(valloader, 0):
+            for i, data in tqdm.tqdm(enumerate(valloader, 0)):
                 x_categ, x_cont, _ ,cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device),data[4].to(device)
                 # embed_data_mask function is used to embed both categorical and continuous data.
                 if 'cutmix' in opt.pt_aug:
