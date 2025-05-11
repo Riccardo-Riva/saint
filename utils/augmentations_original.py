@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 
-def embed_data(x_categ, x_cont, model):
+def embed_data(x_categ, x_cont, model, vision_dset=False):
     device = x_cont.device
     x_categ = x_categ + model.categories_offset.type_as(x_categ)
     x_categ_enc = model.embeds(x_categ)
@@ -13,12 +13,19 @@ def embed_data(x_categ, x_cont, model):
         for i in range(model.num_continuous):
             x_cont_enc[:,i,:] = model.simple_MLP[i](x_cont[:,i])
     else:
-        raise Exception('This case should not work!')
+        raise Exception('This case should not work!')    
+
+    if vision_dset:
+        
+        pos = np.tile(np.arange(x_categ.shape[-1]),(x_categ.shape[0],1))
+        pos =  torch.from_numpy(pos).to(device)
+        pos_enc =model.pos_encodings(pos)
+        x_categ_enc+=pos_enc
 
     return x_categ, x_categ_enc, x_cont_enc
 
 
-def embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model):
+def embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model, vision_dset=False):
     '''
     This function is used to embed the data and add the mask embeddings.
     '''
@@ -34,24 +41,36 @@ def embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model):
     else:
         raise Exception('This case should not work!')    
 
+
     x_cont_enc = x_cont_enc.to(device)
     cat_mask_temp = cat_mask + model.cat_mask_offset.type_as(cat_mask)
     con_mask_temp = con_mask + model.con_mask_offset.type_as(con_mask)
+
 
     cat_mask_temp = model.mask_embeds_cat(cat_mask_temp)
     con_mask_temp = model.mask_embeds_cont(con_mask_temp)
     x_categ_enc[cat_mask == 0] = cat_mask_temp[cat_mask == 0]
     x_cont_enc[con_mask == 0] = con_mask_temp[con_mask == 0]
 
+    if vision_dset:
+        
+        pos = np.tile(np.arange(x_categ.shape[-1]),(x_categ.shape[0],1))
+        pos =  torch.from_numpy(pos).to(device)
+        pos_enc = model.pos_encodings(pos)
+        x_categ_enc+=pos_enc
+
     return x_categ, x_categ_enc, x_cont_enc
 
 
-def mixup_data(x1, x2, device , lam=1.0, y=None):
+def mixup_data(x1, x2 , lam=1.0, y= None, use_cuda=True):
     '''Returns mixed inputs, pairs of targets'''
 
     batch_size = x1.size()[0]
-    
-    index = torch.randperm(batch_size).to(device)
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
 
     mixed_x1 = lam * x1 + (1 - lam) * x1[index, :]
     mixed_x2 = lam * x2 + (1 - lam) * x2[index, :]
@@ -85,4 +104,3 @@ def add_noise(x_categ,x_cont, noise_params = {'noise_type' : ['cutmix'],'lambda'
         
     else:
         print("yet to write this")
-        raise NotImplementedError("yet to write this")

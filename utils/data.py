@@ -52,8 +52,8 @@ class DataSetCatCon(Dataset):
     def __init__(self, X, Y, cat_cols,task='clf',continuous_mean_std=None):
         
         cat_cols = list(cat_cols)
-        X_mask =  X['mask'].copy()
-        X = X['data'].copy()
+        X_mask =  X['mask']
+        X = X['data']
         # subtracton between sets to exclude indices
         con_cols = list(set(np.arange(X.shape[1])) - set(cat_cols))
         self.X1 = X[:,cat_cols].copy().astype(np.int32) #categorical columns

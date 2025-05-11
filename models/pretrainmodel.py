@@ -149,7 +149,7 @@ class SAINT(nn.Module):
         con_outs = self.mlp2(x[:,self.num_categories:,:])
         return cat_outs, con_outs
     
-class SAINT_encoder(nn.Module):
+class SAINT_encoder(nn.Module): # same as SAINT but without the final mlp (no y_dim needed)
     def __init__(
         self,
         *,
@@ -167,8 +167,7 @@ class SAINT_encoder(nn.Module):
         ff_dropout = 0.,
         cont_embeddings = 'MLP',
         attentiontype = 'col',
-        final_mlp_style = 'common',
-        y_dim = 2
+        final_mlp_style = 'common'
         ):
         super().__init__()
         assert all(map(lambda n: n > 0, categories)), 'number of each category must be positive'
@@ -262,7 +261,7 @@ class SAINT_encoder(nn.Module):
             self.mlp1 = sep_MLP(dim,self.num_categories,categories)
             self.mlp2 = sep_MLP(dim,self.num_continuous,np.ones(self.num_continuous).astype(int))
 
-        self.pt_mlp = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
+        self.pt_mlp1 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
         self.pt_mlp2 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
 
         
