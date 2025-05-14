@@ -6,9 +6,9 @@ from utils.augmentations import embed_data_mask
 from utils.augmentations import add_noise
 from utils.augmentations import mixup_data
 
-from utils.gpuusage import print_gpu_utilization, print_summary
+from utils.gpuusage import get_gpu_utilization
 
-import tqdm
+from tqdm import tqdm
 
 def loss_on_batch(
         model,
@@ -40,8 +40,8 @@ def loss_on_batch(
         x_categ_corr, x_cont_corr = add_noise(x_categ, x_cont, noise_params = pt_aug_dict)
         _ , x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ_corr, x_cont_corr, cat_mask, con_mask,model)
     else:
-        _ , x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model)
-    _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model)
+        _ , x_categ_enc_2, x_cont_enc_2 = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model)
+    _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model)
     
     if 'mixup' in pt_aug_dict['noise_type']:
         x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2, device, lam=pt_aug_dict['lambda'])
@@ -49,10 +49,10 @@ def loss_on_batch(
     loss = 0.0
 
     if 'contrastive' in pt_aug_dict['noise_type']:
-        aug_features_1  = model.transformer(x_categ_enc, x_cont_enc)
-        aug_features_2 = model.transformer(x_categ_enc_2, x_cont_enc_2)
-        aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1,2)
-        aug_features_2 = (aug_features_2 / aug_features_2.norm(dim=-1, keepdim=True)).flatten(1,2)
+        aug_features_1  = model.transformer(x_categ_enc, x_cont_enc) # application of SAINT transformer
+        aug_features_2 = model.transformer(x_categ_enc_2, x_cont_enc_2) # application of SAINT transformer
+        aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1,2) # Normalize the transformer output 
+        aug_features_2 = (aug_features_2 / aug_features_2.norm(dim=-1, keepdim=True)).flatten(1,2) # Normalize the transformer output
         if  pt_contrastive_dict['pt_projhead_style']== 'diff':
             aug_features_1 = model.pt_mlp1(aug_features_1)
             aug_features_2 = model.pt_mlp2(aug_features_2)
@@ -141,10 +141,6 @@ def epoch_train(
         optimizer.step()
 
         running_loss += loss.item()
-
-        if i+1 % 2**8 == 0:    
-            print(f'Batch {i} of {len(loader)} processed')
-
     running_loss /= len(loader)
 
     return running_loss
@@ -190,9 +186,6 @@ def epoch_eval(
 
             running_loss += loss.item()
 
-            if i+1 % 2**8 == 0:    
-                print(f'Batch {i} of {len(loader)} processed')
-
     running_loss /= len(loader)
 
     return running_loss
@@ -222,10 +215,10 @@ def pretrain(model,trainloader,valloader,opt,device):
     train_losses = []
     val_losses = []
 
-    print('\n')
+    print()
     print(f'Number of trainloader batches: {len(trainloader)}')
     print(f'Number of valloader batches: {len(valloader)}')
-
+    print()
     print("First evaluation on the validation set")
     best_val_loss = epoch_eval(
         model,
@@ -237,13 +230,16 @@ def pretrain(model,trainloader,valloader,opt,device):
         pt_lam_dict=pt_lam_dict
     )
     bestmodel_state_dict = model.state_dict()
+
     print(f'Validation Loss: {best_val_loss}')
 
-
+    print()
     print("Pretraining begins!")
-    for epoch in tqdm.tqdm(range(opt.pretrain_epochs)):
 
-        print(f'\nPretraining epoch: {epoch}')
+    progress_bar = tqdm(range(opt.pretrain_epochs), desc="Pretraining", unit="Epoch")
+
+    for epoch in progress_bar:
+
         train_running_loss = epoch_train(
             model,
             trainloader,
@@ -254,12 +250,11 @@ def pretrain(model,trainloader,valloader,opt,device):
             pt_contrastive_dict=pt_contrastive_dict,
             pt_lam_dict=pt_lam_dict
         )
+
         #print(f"Memory allocated: {torch.cuda.memory_allocated() / 1024 ** 3:.2f} GB")
         #print(f"Max memory allocated: {torch.cuda.max_memory_allocated() / 1024 ** 3:.2f} GB")
-        if epoch == 0:
-            memory_used, _ = print_gpu_utilization(device)
-
-        print(f'Epoch: {epoch}, Training running Loss: {train_running_loss}')
+        
+        memory_used, memory_total = get_gpu_utilization(device)
 
         train_loss = epoch_eval(
             model,
@@ -270,7 +265,6 @@ def pretrain(model,trainloader,valloader,opt,device):
             pt_contrastive_dict=pt_contrastive_dict,
             pt_lam_dict=pt_lam_dict
         )
-        print(f'Epoch: {epoch}, Traning Loss: {train_loss}')
 
         val_loss = epoch_eval(
             model,
@@ -281,7 +275,15 @@ def pretrain(model,trainloader,valloader,opt,device):
             pt_contrastive_dict=pt_contrastive_dict,
             pt_lam_dict=pt_lam_dict
         )
-        print(f'Epoch: {epoch}, Validation Loss: {val_loss}')
+
+        progress_bar.set_postfix(
+            {
+                'trl': f'{train_running_loss:.5f}', # training running loss 
+                "tl": f'{train_loss:.5f}', # training loss
+                "vl": f'{val_loss:.5f}', # validation loss
+                "mu": f'{memory_used:.3f}/{memory_total:.3f} Gb' # memory used
+            }
+        )
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -290,5 +292,5 @@ def pretrain(model,trainloader,valloader,opt,device):
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
-    print('END OF PRETRAINING!')
+    print('END OF PRETRAINING')
     return model, bestmodel_state_dict, train_losses, val_losses, memory_used
