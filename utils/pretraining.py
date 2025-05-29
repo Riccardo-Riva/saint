@@ -47,8 +47,11 @@ def loss_on_batch(
         x_categ_enc_2, x_cont_enc_2 = mixup_data(x_categ_enc_2, x_cont_enc_2, device, lam=pt_aug_dict['lambda'])
 
     loss = 0.0
+    loss_contrastive = 0.0
+    loss_denoising_con = 0.0
+    loss_denoising_cat = 0.0
 
-    if 'contrastive' in pt_aug_dict['noise_type']:
+    if 'contrastive' in pt_tasks:
         aug_features_1  = model.transformer(x_categ_enc, x_cont_enc) # application of SAINT transformer
         aug_features_2 = model.transformer(x_categ_enc_2, x_cont_enc_2) # application of SAINT transformer
         aug_features_1 = (aug_features_1 / aug_features_1.norm(dim=-1, keepdim=True)).flatten(1,2) # Normalize the transformer output 
@@ -66,8 +69,10 @@ def loss_on_batch(
         targets = torch.arange(logits_per_aug1.size(0)).to(logits_per_aug1.device)
         loss_1 = criterion1(logits_per_aug1, targets)
         loss_2 = criterion1(logits_per_aug2, targets)
-        loss   = pt_lam_dict['lam0']*(loss_1 + loss_2)/2
-        
+        loss_contrastive = (loss_1 + loss_2) / 2
+        loss += pt_lam_dict['lam0']*loss_contrastive
+        # loss = pt_lam_dict['lam0']*(loss_1 + loss_2)/2
+     
     elif 'contrastive_sim' in pt_tasks:
         aug_features_1  = model.transformer(x_categ_enc, x_cont_enc)
         aug_features_2 = model.transformer(x_categ_enc_2, x_cont_enc_2)
@@ -76,7 +81,9 @@ def loss_on_batch(
         aug_features_1 = model.pt_mlp1(aug_features_1)
         aug_features_2 = model.pt_mlp2(aug_features_2)
         c1 = aug_features_1 @ aug_features_2.t()
-        loss+=pt_lam_dict['lam1']*torch.diagonal(-1*c1).add_(1).pow_(2).sum()
+        loss_contrastive_sim = torch.diagonal(-1*c1).add_(1).pow_(2).sum()
+        loss += pt_lam_dict['lam1']*loss_contrastive
+        #loss+=pt_lam_dict['lam1']*torch.diagonal(-1*c1).add_(1).pow_(2).sum()
 
     if 'denoising' in pt_tasks:
         cat_outs, con_outs = model(x_categ_enc_2, x_cont_enc_2)
@@ -84,18 +91,18 @@ def loss_on_batch(
         # import ipdb; ipdb.set_trace()
         if len(con_outs) > 0:
             con_outs =  torch.cat(con_outs,dim=1)
-            l2 = criterion2(con_outs, x_cont)
-        else:
-            l2 = 0
-        l1 = 0
+            loss_denoising_con = criterion2(con_outs, x_cont)
+
         # import ipdb; ipdb.set_trace()
         n_cat = x_categ.shape[-1]
         for j in range(1,n_cat):
-            l1+= criterion1(cat_outs[j],x_categ[:,j])
+            loss_denoising_cat+= criterion1(cat_outs[j],x_categ[:,j])
 
-        loss += pt_lam_dict['lam2']*l1 + pt_lam_dict['lam3']*l2
+        loss += pt_lam_dict['lam2']*loss_denoising_cat + pt_lam_dict['lam3']*loss_denoising_con
 
-    return loss
+    loss_contributions = torch.Tensor([loss_contrastive, loss_denoising_cat, loss_denoising_con]).to(device)
+
+    return loss, loss_contributions
 
 
 def epoch_train(
@@ -123,11 +130,12 @@ def epoch_train(
     model.train()
 
     running_loss = 0.0
+    running_loss_contributions = torch.zeros(3).to(device)
 
     for i, data in enumerate(loader, 0):
         optimizer.zero_grad()
 
-        loss = loss_on_batch(
+        loss, loss_contributions = loss_on_batch(
             model,
             data,
             device,
@@ -141,9 +149,12 @@ def epoch_train(
         optimizer.step()
 
         running_loss += loss.item()
+        running_loss_contributions += loss_contributions
+    
     running_loss /= len(loader)
+    running_loss_contributions /= len(loader)
 
-    return running_loss
+    return running_loss, running_loss_contributions
 
 
 def epoch_eval(
@@ -168,13 +179,14 @@ def epoch_eval(
         ):
 
     running_loss = 0.0
+    running_loss_contributions = torch.zeros(3).to(device)
 
     model.eval()
 
     with torch.no_grad():
         for i, data in enumerate(loader, 0):
             
-            loss = loss_on_batch(
+            loss, loss_contributions = loss_on_batch(
                 model,
                 data,
                 device,
@@ -185,10 +197,12 @@ def epoch_eval(
             )
 
             running_loss += loss.item()
+            running_loss_contributions += loss_contributions
 
     running_loss /= len(loader)
+    running_loss_contributions /= len(loader)
 
-    return running_loss
+    return running_loss, running_loss_contributions
     
 
 ########## PRETRAINING PIPELINE #############
@@ -213,14 +227,17 @@ def pretrain(model,trainloader,valloader,opt,device):
     }
 
     train_losses = []
+    train_losses_contributions = []
     val_losses = []
+    val_losses_contributions = []
+
 
     print()
     print(f'Number of trainloader batches: {len(trainloader)}')
     print(f'Number of valloader batches: {len(valloader)}')
     print()
     print("First evaluation on the validation set")
-    best_val_loss = epoch_eval(
+    best_val_loss, best_val_loss_contributions = epoch_eval(
         model,
         valloader,
         device,
@@ -232,6 +249,10 @@ def pretrain(model,trainloader,valloader,opt,device):
     bestmodel_state_dict = model.state_dict()
 
     print(f'Validation Loss: {best_val_loss}')
+    print(f'Validation Loss Contributions:')
+    print(f'Contrastive Loss: {best_val_loss_contributions[0]}')
+    print(f'Denoising Categorical Loss: {best_val_loss_contributions[1]}')
+    print(f'Denoising Continuous Loss: {best_val_loss_contributions[2]}')
 
     print()
     print("Pretraining begins!")
@@ -240,7 +261,7 @@ def pretrain(model,trainloader,valloader,opt,device):
 
     for epoch in progress_bar:
 
-        train_running_loss = epoch_train(
+        train_running_loss, train_running_loss_contributions = epoch_train(
             model,
             trainloader,
             optimizer,
@@ -256,7 +277,7 @@ def pretrain(model,trainloader,valloader,opt,device):
         
         memory_used, memory_total = get_gpu_utilization(device)
 
-        train_loss = epoch_eval(
+        train_loss, train_loss_contributions = epoch_eval(
             model,
             trainloader,
             device,
@@ -266,7 +287,7 @@ def pretrain(model,trainloader,valloader,opt,device):
             pt_lam_dict=pt_lam_dict
         )
 
-        val_loss = epoch_eval(
+        val_loss, val_loss_contributions = epoch_eval(
             model,
             valloader,
             device,
@@ -287,10 +308,22 @@ def pretrain(model,trainloader,valloader,opt,device):
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            best_val_loss_contributions = val_loss_contributions
             bestmodel_state_dict = model.state_dict()
 
         train_losses.append(train_loss)
+        train_losses_contributions.append(train_loss_contributions)
         val_losses.append(val_loss)
+        val_losses_contributions.append(val_loss_contributions)
+
+    train_losses = torch.Tensor(train_losses)
+    val_losses = torch.Tensor(val_losses)
+
+    train_losses_contributions = torch.stack(train_losses_contributions)
+    val_losses_contributions = torch.stack(val_losses_contributions)
+
+    train_losses_contributions = train_losses_contributions.t()
+    val_losses_contributions = val_losses_contributions.t()
 
     print('END OF PRETRAINING')
-    return model, bestmodel_state_dict, train_losses, val_losses, memory_used
+    return model, bestmodel_state_dict, train_losses, train_losses_contributions, val_losses, val_losses_contributions, memory_used
