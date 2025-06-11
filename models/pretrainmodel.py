@@ -54,10 +54,7 @@ class SAINT(nn.Module):
         self.total_tokens = self.num_unique_categories + num_special_tokens
 
         # for automatically offsetting unique category ids to the correct position in the categories embedding table
-        """ ORIGINAL
         categories_offset = F.pad(torch.tensor(list(categories)), (1, 0), value = num_special_tokens)
-        """
-        categories_offset = F.pad(torch.tensor([int(x) for x in categories]), (1, 0), value = num_special_tokens)
         categories_offset = categories_offset.cumsum(dim = -1)[:-1]
         
         self.register_buffer('categories_offset', categories_offset)
@@ -231,6 +228,9 @@ class SAINT_encoder(nn.Module): # same as SAINT but without the final mlp (no y_
                 ff_dropout = ff_dropout,
                 style = attentiontype
             )
+        # else the self.transofrmer simply concatenates the categorical and continuous features
+        elif attentiontype == 'concat':
+            self.transformer = Concat()
 
         l = input_size // 8
         hidden_dimensions = list(map(lambda t: l * t, mlp_hidden_mults))
@@ -261,8 +261,8 @@ class SAINT_encoder(nn.Module): # same as SAINT but without the final mlp (no y_
             self.mlp1 = sep_MLP(dim,self.num_categories,categories)
             self.mlp2 = sep_MLP(dim,self.num_continuous,np.ones(self.num_continuous).astype(int))
 
-        self.pt_mlp1 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
-        self.pt_mlp2 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
+        self.pt_mlp1 = simple_MLP([dim*(self.num_continuous+self.num_categories), 6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
+        self.pt_mlp2 = simple_MLP([dim*(self.num_continuous+self.num_categories), 6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
 
         
     def forward(self, x_categ, x_cont):

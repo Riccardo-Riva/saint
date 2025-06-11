@@ -100,7 +100,7 @@ def loss_on_batch(
 
         loss += pt_lam_dict['lam2']*loss_denoising_cat + pt_lam_dict['lam3']*loss_denoising_con
 
-    loss_contributions = torch.Tensor([loss_contrastive, loss_denoising_cat, loss_denoising_con])
+    loss_contributions = torch.Tensor([loss_contrastive, loss_denoising_cat, loss_denoising_con]).to(device)
 
     return loss, loss_contributions
 
@@ -130,7 +130,7 @@ def epoch_train(
     model.train()
 
     running_loss = 0.0
-    running_loss_contributions = torch.zeros(3)
+    running_loss_contributions = torch.zeros(3).to(device)
 
     for i, data in enumerate(loader, 0):
         optimizer.zero_grad()
@@ -179,7 +179,7 @@ def epoch_eval(
         ):
 
     running_loss = 0.0
-    running_loss_contributions = torch.zeros(3)
+    running_loss_contributions = torch.zeros(3).to(device)
 
     model.eval()
 

@@ -146,7 +146,15 @@ class Transformer(nn.Module):
             x = attn(x)
             x = ff(x)
         return x
-    
+
+class Concat(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x, x_cont=None):
+        if x_cont is not None:
+            x = torch.cat((x,x_cont),dim=1)
+        return x
 
 #mlp
 class MLP(nn.Module):
