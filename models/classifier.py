@@ -5,6 +5,7 @@ class classifier(nn.Module):
     def __init__(
         self,
         *,
+        encoder,
         categories,
         num_continuous,
         dim,
@@ -123,10 +124,11 @@ class classifier(nn.Module):
         self.pt_mlp = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
         self.pt_mlp2 = simple_MLP([dim*(self.num_continuous+self.num_categories) ,6*dim*(self.num_continuous+self.num_categories)//5, dim*(self.num_continuous+self.num_categories)//2])
 
+        self.encoder = encoder
         
     def forward(self, x_categ, x_cont):
         
-        x = self.transformer(x_categ, x_cont)
+        x = self.encoder.transformer(x_categ, x_cont)
         cat_outs = self.mlp1(x[:,:self.num_categories,:])
         con_outs = self.mlp2(x[:,self.num_categories:,:])
         return cat_outs, con_outs

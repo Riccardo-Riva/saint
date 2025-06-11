@@ -48,11 +48,11 @@ def data_split_indices(X,y,nan_mask,indices):
     } 
     return x_d, y_d
 
-class DataSetCatCon(Dataset):
-    def __init__(self, X, Y, cat_cols,task='clf',continuous_mean_std=None):
+class DataSetCatCon_pretraining(Dataset):
+    def __init__(self, X, Y, ids, cat_cols,task='clf',continuous_mean_std=None):
         
         cat_cols = list(cat_cols)
-        X_mask =  X['mask']
+        X_mask = X['mask']
         X = X['data']
         # subtracton between sets to exclude indices
         con_cols = list(set(np.arange(X.shape[1])) - set(cat_cols))
@@ -76,4 +76,38 @@ class DataSetCatCon(Dataset):
     def __getitem__(self, idx):
         # X1 has categorical data, X2 has continuous
         return np.concatenate((self.cls[idx], self.X1[idx])), self.X2[idx],self.y[idx], np.concatenate((self.cls_mask[idx], self.X1_mask[idx])), self.X2_mask[idx]
+
+class DataSetCatCon_training(Dataset):
+    def __init__(self, X, Y, ids, cat_cols,task='clf',continuous_mean_std=None):
+        
+        cat_cols = list(cat_cols)
+        X_mask = X['mask']
+        X = X['data']
+        # subtracton between sets to exclude indices
+        con_cols = list(set(np.arange(X.shape[1])) - set(cat_cols))
+        self.X1 = X[:,cat_cols].copy().astype(np.int32) #categorical columns
+        self.X2 = X[:,con_cols].copy().astype(np.float32) #numerical columns
+        self.X1_mask = X_mask[:,cat_cols].copy().astype(np.int32) #categorical columns mask
+        self.X2_mask = X_mask[:,con_cols].copy().astype(np.int32) #numerical columns mask
+        if task == 'clf':
+            self.y = Y['data'] #.astype(np.float32)
+        else:
+            self.y = Y['data'].astype(np.float32)
+        self.ids = ids
+
+        self.cls = np.zeros_like(self.y,dtype=int) # cls token
+        self.cls_mask = np.ones_like(self.y,dtype=int) # cls token masking (it is always present)
+        if continuous_mean_std is not None:
+            mean, std = continuous_mean_std
+            self.X2 = (self.X2 - mean) / std
+
+    def __len__(self):
+        return len(np.unique(self.ids))
+    
+    def __getitem__(self, idx):
+        idxs = np.where(self.ids == np.unique(self.ids)[idx])[0]
+        if len(idxs) == 0:
+            raise ValueError(f"ID {idx} not found in dataset.")
+        # X1 has categorical data, X2 has continuous
+        return np.concatenate((self.cls[idxs], self.X1[idxs])), self.X2[idxs],self.y[idxs], np.concatenate((self.cls_mask[idxs], self.X1_mask[idxs])), self.X2_mask[idxs], np.unique(self.ids)[idx]
 
