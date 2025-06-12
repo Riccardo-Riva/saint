@@ -25,10 +25,8 @@ def embed_data_mask(x_categ, x_cont, cat_mask, con_mask, model):
     device = x_cont.device
     x_categ = x_categ + model.categories_offset.type_as(x_categ)
     x_categ_enc = model.embeds(x_categ)
-
-    ## CHECK - I MODIFIED THIS
-    n1,n2 = (x_cont.shape[-2], x_cont.shape[-1])
-    n3 = x_categ.shape[-1]
+    n1,n2 = x_cont.shape
+    _, n3 = x_categ.shape
     if model.cont_embeddings == 'MLP':
         x_cont_enc = torch.empty(n1,n2, model.dim)
         for i in range(model.num_continuous):

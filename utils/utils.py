@@ -34,7 +34,7 @@ def imputations_acc_justy(model,dloader,device):
         for i, data in enumerate(dloader, 0):
             x_categ, x_cont, cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device)
             _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model)
-            reps = model.transformer(x_categ_enc, x_cont_enc)
+            reps = model.encoder.transformer(x_categ_enc, x_cont_enc)
             y_reps = reps[:,model.num_categories-1,:]
             y_outs = model.mlpfory(y_reps)
             # import ipdb; ipdb.set_trace()   
@@ -59,7 +59,7 @@ def multiclass_acc_justy(model,dloader,device):
         for i, data in enumerate(dloader, 0):
             x_categ, x_cont, cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device)
             _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model,vision_dset)
-            reps = model.transformer(x_categ_enc, x_cont_enc)
+            reps = model.encoder.transformer(x_categ_enc, x_cont_enc)
             y_reps = reps[:,model.num_categories-1,:]
             y_outs = model.mlpfory(y_reps)
             # import ipdb; ipdb.set_trace()   
@@ -79,13 +79,11 @@ def classification_scores(model, dloader, device, task,vision_dset):
     prob = torch.empty(0).to(device)
     with torch.no_grad():
         for i, data in enumerate(dloader, 0):
-            x_categ, x_cont, y_gts, cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device),data[4].to(device)
+            x_categ, x_cont, y_gts, cat_mask, con_mask = data[0][0].to(device), data[1][0].to(device),data[2][0].to(device),data[3][0].to(device),data[4][0].to(device)
             _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model)           
-            reps = model.transformer(x_categ_enc, x_cont_enc)
-            y_reps = reps[:,0,:]
-            y_outs = model.mlpfory(y_reps)
+            y_outs = model(x_categ_enc, x_cont_enc)
             # import ipdb; ipdb.set_trace()   
-            y_test = torch.cat([y_test,y_gts.squeeze().float()],dim=0)
+            y_test = torch.cat([y_test,y_gts.float()],dim=0) ## CHECK I changed this, removing squeeze
             y_pred = torch.cat([y_pred,torch.argmax(y_outs, dim=1).float()],dim=0)
             if task == 'binary':
                 prob = torch.cat([prob,m(y_outs)[:,-1].float()],dim=0)
@@ -103,12 +101,10 @@ def mean_sq_error(model, dloader, device, vision_dset):
     y_pred = torch.empty(0).to(device)
     with torch.no_grad():
         for i, data in enumerate(dloader, 0):
-            x_categ, x_cont, y_gts, cat_mask, con_mask = data[0].to(device), data[1].to(device),data[2].to(device),data[3].to(device),data[4].to(device)
+            x_categ, x_cont, y_gts, cat_mask, con_mask = data[0][0].to(device), data[1][0].to(device),data[2][0].to(device),data[3][0].to(device),data[4][0].to(device)
             _ , x_categ_enc, x_cont_enc = embed_data_mask(x_categ, x_cont, cat_mask, con_mask,model)           
-            reps = model.transformer(x_categ_enc, x_cont_enc)
-            y_reps = reps[:,0,:]
-            y_outs = model.mlpfory(y_reps)
-            y_test = torch.cat([y_test,y_gts.squeeze().float()],dim=0)
+            y_outs = model(x_categ_enc, x_cont_enc)
+            y_test = torch.cat([y_test,y_gts.float()],dim=0) ## CHECK I changed this, removing squeeze
             y_pred = torch.cat([y_pred,y_outs],dim=0)
         # import ipdb; ipdb.set_trace() 
         rmse = mean_squared_error(y_test.cpu(), y_pred.cpu(), squared=False)

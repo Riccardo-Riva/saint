@@ -1,4 +1,4 @@
-name: saint_env
+name: original_saint_env
 channels:
   - anaconda
   - pytorch

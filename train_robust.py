@@ -164,19 +164,19 @@ cat_dims = np.append(np.array([1]),np.array(cat_dims)).astype(int) #Appending 1 
 
 
 model = SAINT(
-categories = tuple(cat_dims), 
-num_continuous = len(con_idxs),                
-dim = opt.embedding_size,                           
-dim_out = 1,                       
-depth = opt.transformer_depth,                       
-heads = opt.attention_heads,                         
-attn_dropout = opt.attention_dropout,             
-ff_dropout = opt.ff_dropout,                  
-mlp_hidden_mults = (4, 2),       
-cont_embeddings = opt.cont_embeddings,
-attentiontype = opt.attentiontype,
-final_mlp_style = opt.final_mlp_style,
-y_dim = y_dim
+    categories = tuple(cat_dims), 
+    num_continuous = len(con_idxs),                
+    dim = opt.embedding_size,                           
+    dim_out = 1,                       
+    depth = opt.transformer_depth,                       
+    heads = opt.attention_heads,                         
+    attn_dropout = opt.attention_dropout,             
+    ff_dropout = opt.ff_dropout,                  
+    mlp_hidden_mults = (4, 2),       
+    cont_embeddings = opt.cont_embeddings,
+    attentiontype = opt.attentiontype,
+    final_mlp_style = opt.final_mlp_style,
+    y_dim = y_dim
 )
 vision_dset = opt.vision_dset
 
