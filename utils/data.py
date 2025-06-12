@@ -109,5 +109,4 @@ class DataSetCatCon_training(Dataset):
         if len(idxs) == 0:
             raise ValueError(f"ID {idx} not found in dataset.")
         # X1 has categorical data, X2 has continuous
-        return np.concatenate((self.cls[idxs], self.X1[idxs])), self.X2[idxs],self.y[idxs], np.concatenate((self.cls_mask[idxs], self.X1_mask[idxs])), self.X2_mask[idxs], np.unique(self.ids)[idx]
-
+        return np.concatenate((self.cls[idxs], self.X1[idxs]),axis=1), self.X2[idxs],self.y[idxs], np.concatenate((self.cls_mask[idxs], self.X1_mask[idxs]),axis=1), self.X2_mask[idxs], np.unique(self.ids)[idx]
