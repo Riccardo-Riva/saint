@@ -116,7 +116,7 @@ class RowColTransformer(nn.Module):
                 x = rearrange(x, 'b n d -> 1 b (n d)')
                 x = attn2(x)
                 x = ff2(x)
-                x = rearrange(x, '1 b (n d) -> b n d', n = n)
+                x = rearrange(x, '1 b (n d) -> b n d', n = n)                
         else:
              for attn1, ff1 in self.layers:
                 x = rearrange(x, 'b n d -> 1 b (n d)')
@@ -171,6 +171,27 @@ class MLP(nn.Module):
                 continue
             if act is not None:
                 layers.append(act)
+
+        self.mlp = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.mlp(x)
+
+class MLP_dropout(nn.Module):
+    def __init__(self, dims, act = None, dropout = 0.):
+        super().__init__()
+        dims_pairs = list(zip(dims[:-1], dims[1:]))
+        layers = []
+        for ind, (dim_in, dim_out) in enumerate(dims_pairs):
+            is_last = ind >= (len(dims) - 1)
+            linear = nn.Linear(dim_in, dim_out)
+            layers.append(linear)
+
+            if not is_last:
+                if act is not None:
+                    layers.append(act)
+                if dropout > 0.:
+                    layers.append(nn.Dropout(p=dropout))
 
         self.mlp = nn.Sequential(*layers)
 
@@ -312,4 +333,3 @@ class TabAttention(nn.Module):
                     x = torch.cat((flat_categ, x_cont), dim = -1)                    
         flat_x = x.flatten(1)
         return self.mlp(flat_x)
-

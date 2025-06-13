@@ -7,11 +7,12 @@ class classifier(nn.Module):
         *,
         encoder,
         dim,
-        y_dim = 2
+        y_dim = 2,
+        dropout = 0.
         ):
         super().__init__()
 
-        self.mlpfory = simple_MLP([dim ,1000, y_dim])
+        self.mlpfory = MLP_dropout([dim ,dim*100,dim*80,dim*40, y_dim],dropout=dropout)
         self.encoder = encoder
         self.dim = dim
         
