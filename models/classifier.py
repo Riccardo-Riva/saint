@@ -1,5 +1,6 @@
 from .model import *
 from .pretrainmodel import SAINT_encoder
+#from einops import rearrange
 
 class classifier(nn.Module):
     def __init__(
@@ -11,9 +12,12 @@ class classifier(nn.Module):
         dropout = 0.
         ):
         super().__init__()
-
-        self.mlpfory = MLP_dropout([dim ,dim*100,dim*80,dim*40, y_dim],dropout=dropout)
+        
         self.encoder = encoder
+
+        #total_dim = (encoder.num_categories+encoder.num_continuous)*dim
+        self.mlpfory = MLP_dropout([dim, 256, 128, 64, y_dim],dropout=dropout)
+        self.mlpphi = MLP_dropout([dim, 4*dim, 4*dim, 2*dim, dim],dropout=dropout)
         self.dim = dim
         
         self.categories_offset = encoder.categories_offset
@@ -28,7 +32,9 @@ class classifier(nn.Module):
 
     def forward(self, x_categ, x_cont):
         x = self.encoder.transformer(x_categ, x_cont)
+        #x = rearrange(x, 'b n d -> b (n d)')
         x = x[:,0,:]
+        x = self.mlpphi(x)
         x = x.sum(dim=0)
         x = x.reshape(1, -1)
         x = self.mlpfory(x)
